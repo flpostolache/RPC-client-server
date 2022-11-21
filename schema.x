@@ -1,3 +1,9 @@
+/* 
+    Structura generica pe care o folosesc de obicei cand nu prea stiu de ce
+variabile o sa am nevoie. Campul type specifica daca mesajul este de tip 
+eroare sau s-au trimis date. Voi detalia pe cod ce se trimite prin el
+in fiecare caz.
+*/
 struct __general_message
 {
     int type;

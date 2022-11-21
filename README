@@ -1,0 +1,91 @@
+SPRC 2022-2023 - Tema 1 - Aplicatie Client/Server pentru autorizare OAuth folosind RPC
+Autor: Florin Postolache
+Grupa: 341C1
+
+Modalitate de rulare:
+    - make + check.sh all
+    - pentru clean -> make clean
+
+Modificari facute la 'check.sh':
+    - am scos parametrul de SERVER_ADDRESS
+    - Am facut un vector care retine numarul de operatii pentru un token
+de acces valid pentru fiecare test.
+    - Serverul trebuie sa fie apelat cu 4 parametri. Am adaugat al 4-lea 
+parametru ca fiind "${NUMBER_OF_OPS[$1]}" unde $1 sau $i este indicele testului.
+    - Am adaugat newline-uri la final in fisierele .out in teste
+
+
+Flow in client:
+    1. se deschide client.in
+    2. se citeste o linie din client
+        - Daca ramanem fara linii, clientul se termina.
+    3.a Daca aceasta este un REQUEST
+        3.a.1. Vedem daca am mai avut o comanda de tip REQUEST cu acest ID
+            - Daca nu, initializam o noua intrare cu acest ID in DB-ul clientului
+        3.a.2 Incercam sa obtinem un request token pentru acest ID
+            - Daca nu obtinem, afisam USER_NOT_FOUND si ne intoarcem la pct 2
+        3.a.3 Incercam sa validam request token-ul
+        3.a.4 Cu rezultatul de la validarea request token-ului incercam sa 
+        obtinem un access token.
+            - Daca nu obtinem, inseamna ca request token-ul nu a fost aprobat.
+        Printam REQUEST_DENIED si ne intoarcem la punctul 2.
+        3.a.5 Populam baza de date din client cu datele obtinute (access token, 
+        numar de operatii cu access token-ul si refresh token-ul, daca este 
+        cazul). Le vom volosi la urmatoarele request-uri.
+        3.a.6 Sarim la pasul 2.
+    3.b Daca aceasta nu este un REQUEST.
+        3.b.1. Facem rost de intrarea corespunzatoare ID-ului care vrea sa 
+    faca operatia.
+        3.b.2. Daca ID-ul exista, are token de refresh si 0 operatii acceptate ramase
+    generam o noua pereche de token-uri access-refresh.
+        3.b.3 Daca nu, pur si simplu facem request-ul cu ce date avem si
+    interpretez codul de eroare.
+        3.b.4 Sarim la pasul 2.
+
+Flow in server:
+    1. In main:
+        1.a. Citim fisierul cu id-urile cunoscute, resursele disponibile si per-
+    misiunile si le salvam in structurile din main_svr.cc.
+        2.a. Pornim serverul
+
+    2. In request_auth_1:
+        2.a. Se primeste ID-ul utilizatorului care vrea sa obtina un token de 
+    autorizare.
+        2.b. Caut in map-ul cu ID-uri cunoscute, ID-ul care a facut cererea.
+            - Daca nu este gasit, se returneaza codul de eroare 1.
+        2.c. Se genereaza request token-ul.
+
+    3. In approve_request_token_1:
+        3.a. Se extrage urmatorul set de permisiuni din coada de permisiuni,
+    citite din fisier.
+        3.b. Extrag request token-ul din argumentul functiei.
+        3.c. Verific daca setul de permisiuni este diferit de "*,-"
+            - Daca este egal cu valoarea de mai sus, se intoarce token-ul
+        nemodificat.
+        3.d. Caut structura user-ului pe baza request token-ului.
+        3.e. Copiez setul de permisiuni in structura clientului care a facut
+        request-ul si modific token-ul pentru a demonstra ca este semnat.
+
+    4. In request_acc_token_1:
+        4.a. Extrag datele din structura argument de la client
+        4.b. Verific daca ID-ul care a facut cererea exista
+        4.c. Verific daca request token-ul este egal cu cel stocat
+        in structura serverului. 
+            - Daca sunt egale, token-ul nu a fost aprobat. Intoarcem cod de 
+        eroare 1.
+        4.d. Verific daca nu cumva este o cerere automata de reinnoire a token-ului
+        de acces.
+            - Daca este, genereaza o noua pereche de token-uri, salveaza-le si 
+        intoarce-le ca parametru.
+        4.e. Daca nu se intra in nici unul din cazurile de mai sus,
+        inseamna ca token-ul a fost aprobat. Genereaza un token de acces,
+        un token de refresh(daca este nevoie) si trimite-le catre client, alaturi
+        de numarul de operatii permise cu acestea.
+
+ 
+    5. In validate_delegated_action_1:
+        5.a. Extragem resursa pe care dorim sa o accesam, token-ul de acces si
+    operatia pe care dorim sa o aplicam pe resursa
+        5.b. Se urmareste flow-ul descris in PDF.
+
+
