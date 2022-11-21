@@ -41,7 +41,7 @@ general_message* request_auth_1_svc(char** pck, struct svc_req *cl){
 			free(it->second->refresh_token);
 		
 		char *token = generate_access_token(*pck);
-		std::cout << "  RequestToken =  " << token << "\n";
+		std::cout << "  RequestToken = " << token << "\n";
 		data->type = 0;
 		data->resp = token;
 		auth_token_id_map.emplace(std::string(token), id);
@@ -74,8 +74,8 @@ general_message* request_acc_token_1_svc(char** pck, struct svc_req *cl){
 			std::cout << "BEGIN " << *pck << " AUTHZ REFRESH\n";
 			char *auth_token = generate_access_token(it->second->refresh_token);
 			char *refresh_token = generate_access_token(auth_token);
-			std::cout << "  AccessToken =  " << auth_token << "\n";
-			std::cout << "  RefreshToken =  " << refresh_token << "\n";
+			std::cout << "  AccessToken = " << auth_token << "\n";
+			std::cout << "  RefreshToken = " << refresh_token << "\n";
 			free(it->second->general_token);
 			free(it->second->refresh_token);
 			it->second->general_token = auth_token;
@@ -93,7 +93,7 @@ general_message* request_acc_token_1_svc(char** pck, struct svc_req *cl){
 			return response;
 		}else {
 			char *auth_token = generate_access_token(it->second->general_token);
-			std::cout << "  AccessToken =  " << auth_token << "\n";
+			std::cout << "  AccessToken = " << auth_token << "\n";
 			char* refresh_token = NULL;
 			free(it->second->general_token);
 			it->second->general_token = auth_token;
@@ -101,7 +101,7 @@ general_message* request_acc_token_1_svc(char** pck, struct svc_req *cl){
 			acc_token_id_map.emplace(std::string(auth_token), it->first);
 			if(strcmp(renewal_char, "0") != 0){
 				refresh_token = generate_access_token(auth_token);
-				std::cout << "  RefreshToken =  " << refresh_token << "\n";
+				std::cout << "  RefreshToken = " << refresh_token << "\n";
 				it->second->refresh_token = refresh_token;
 			}
 			response->resp = (char *)calloc(strlen(auth_token) + (it->second->refresh_token ? strlen(refresh_token) + 1: 0) + std::to_string(token_availability).length() + 2, sizeof(char));
@@ -178,7 +178,7 @@ int* validate_delegated_action_1_svc(char** pck, struct svc_req *cl){
 
 	if(get_user->second->remained_ops == 0){
 		*err = 2;
-		std::cout << "DENY (" << *pck << "," << accessed_res << "," << token << ",0)\n";
+		std::cout << "DENY (" << *pck << "," << accessed_res << ",,0)\n";
 		return err;
 	}
 	if (AvailableRes.find(std::string(accessed_res)) == AvailableRes.end()){

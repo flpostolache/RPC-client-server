@@ -121,7 +121,7 @@ int main(int argc, char *argv[]){
 			{
 			case 0:
 				(get_acc_token->second->remained_ops)--;
-				std::cout << "PERMISIION_GRANTED\n";
+				std::cout << "PERMISSION_GRANTED\n";
 				break;
 			case 1:
 				std::cout << "PERMISSION_DENIED\n";

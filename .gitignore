@@ -6,3 +6,6 @@ tests.zip
 server
 client
 tests/*
+check.sh
+client.out
+server.out
