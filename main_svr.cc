@@ -87,13 +87,12 @@ general_message* request_acc_token_1_svc(char** pck, struct svc_req *cl){
 	*renewal_char = '\0';
 	renewal_char++;
 
+	// Alocare mesaj de raspuns
+	general_message* response = (general_message*)calloc(1, sizeof(general_message));
+
 	// Cautam daca ID-ul este in baza de date de id-uri cunoscute
 	std::map<std::string, User_data_srv*>::iterator it = ID_REQ_TOKEN.find(std::string(*pck));
 	if (it != ID_REQ_TOKEN.end()) {
-
-		// Alocare mesaj de raspuns
-		general_message* response = (general_message*)calloc(1, sizeof(general_message));
-
 		// Daca token-ul de aprobare este neschimbat, inseamna ca
 		//cererea nu a fost aprobata. Intoarcem eroare.
 		if(!strcmp(it->second->general_token, approved_token)) {
@@ -103,7 +102,7 @@ general_message* request_acc_token_1_svc(char** pck, struct svc_req *cl){
 		// Vedem daca ID-ul curent nu mai poate face operatii si daca are
 		//refresh token. Daca are si este egal cu cel primit in pachet,
 		//generam o noua pereche de token-uri refresh-acces.
-		else if ((it->second->remained_ops == 0) && it->second->refresh_token && !strcmp(it->second->refresh_token, approved_token)){
+		else if ((it->second->remained_ops == 0) && it->second->refresh_token && !strcmp(it->second->refresh_token, approved_token)) {
 			std::cout << "BEGIN " << *pck << " AUTHZ REFRESH\n";
 			// Generare pereche token acces-refresh
 			char *auth_token = generate_access_token(it->second->refresh_token);
@@ -134,49 +133,68 @@ general_message* request_acc_token_1_svc(char** pck, struct svc_req *cl){
 			response->type = 0;
 			strcat(response->resp, std::to_string(token_availability).c_str());
 			return response;
-		}else {
-			// Cazul ramas neacoperit de cerinta este cazul de generare
-			//a unui token de acces cand se primeste un token de autori
-			//zare, aprobat de utilizator.
+		} else {
 
-			// Generam access token-ul.
-			char *auth_token = generate_access_token(it->second->general_token);
-			std::cout << "  AccessToken = " << auth_token << "\n";
-			char* refresh_token = NULL;
+			approved_token[0] = ~(approved_token[0]);
 
-			// Nu am vrut sa folosesc doua campuri separate pentru 
-			//request token si auth token. Dupa ce ajung in acest punct,
-			//request token-ul este inutil. Inlocuieste-l cu access token.
-			free(it->second->general_token);
-			it->second->general_token = auth_token;
-			it->second->remained_ops = token_availability;
+			if (!strcmp(approved_token, it->second->general_token)){
+				// Cazul ramas neacoperit de cerinta este cazul de generare
+				//a unui token de acces cand se primeste un token de autori
+				//zare, aprobat de utilizator.
+
+				// Generam access token-ul.
+				char *auth_token = generate_access_token(it->second->general_token);
+				std::cout << "  AccessToken = " << auth_token << "\n";
+				char* refresh_token = NULL;
+
+				// Nu am vrut sa folosesc doua campuri separate pentru 
+				//request token si auth token. Dupa ce ajung in acest punct,
+				//request token-ul este inutil. Inlocuieste-l cu access token.
+				free(it->second->general_token);
+				it->second->general_token = auth_token;
+				it->second->remained_ops = token_availability;
 			
-			// Adaug in acest map perechea acc_token-id pentru a-mi fi
-			//mai usor sa caut access-token-ul in "Validate Delegated 
-			//Action".
-			acc_token_id_map.emplace(std::string(auth_token), it->first);
+				// Adaug in acest map perechea acc_token-id pentru a-mi fi
+				//mai usor sa caut access-token-ul in "Validate Delegated 
+				//Action".
+				acc_token_id_map.emplace(std::string(auth_token), it->first);
 
-			// Verificam daca trebuie sa ii generezi si refresh token.
-			if(strcmp(renewal_char, "0") != 0){
-				refresh_token = generate_access_token(auth_token);
-				std::cout << "  RefreshToken = " << refresh_token << "\n";
-				it->second->refresh_token = refresh_token;
-			}
+				// Verificam daca trebuie sa ii generezi si refresh token.
+				if(strcmp(renewal_char, "0") != 0){
+					refresh_token = generate_access_token(auth_token);
+					std::cout << "  RefreshToken = " << refresh_token << "\n";
+					it->second->refresh_token = refresh_token;
+				}
 
-			// Alocam spatiu in raspuns.
-			response->resp = (char *)calloc(strlen(auth_token) + (it->second->refresh_token ? strlen(refresh_token) + 1: 0) + std::to_string(token_availability).length() + 2, sizeof(char));
-			memcpy(response->resp, auth_token, strlen(auth_token));
-			strcat(response->resp, ",");
-			if(it->second->refresh_token){
-				strcat(response->resp, refresh_token); 
+				// Alocam spatiu in raspuns.
+				response->resp = (char *)calloc(strlen(auth_token) + (it->second->refresh_token ? strlen(refresh_token) + 1: 0) + std::to_string(token_availability).length() + 2, sizeof(char));
+				memcpy(response->resp, auth_token, strlen(auth_token));
 				strcat(response->resp, ",");
-			}
+				if(it->second->refresh_token){
+					strcat(response->resp, refresh_token); 
+					strcat(response->resp, ",");
+				}
 
-			// Marcam ca raspunsul nu este eroare si ca se vor trimite date.
-			response->type = 0;
-			strcat(response->resp, std::to_string(token_availability).c_str());
-			return response;
+				// Marcam ca raspunsul nu este eroare si ca se vor trimite date.
+				response->type = 0;
+				strcat(response->resp, std::to_string(token_availability).c_str());
+				return response;
+			} else {
+				// Marcam raspunsul ca fiind un mesaj de eroare.
+				response->type = -1;
+				//	Holy dang. RPC stubs do not accept NULL pointers. Put a string 
+				//terminator to avoid seg faults.
+				response->resp = (char*)calloc(1, sizeof(char));
+			}
 		}
+		
+	}
+	else{
+		// Marcam raspunsul ca fiind un mesaj de eroare.
+		response->type = -1;
+		//	Holy dang. RPC stubs do not accept NULL pointers. Put a string 
+		//terminator to avoid seg faults.
+		response->resp = (char*)calloc(1, sizeof(char));
 	}
 }
 char** approve_request_token_1_svc(char** pck, struct svc_req *cl){
@@ -199,7 +217,9 @@ char** approve_request_token_1_svc(char** pck, struct svc_req *cl){
 		//egal cu cel primit ca parametru.
 		std::map<std::string, std::string>::iterator it = auth_token_id_map.find(std::string(*pck));
 		if(it == auth_token_id_map.end()){
-			std::cout << "Avem o problema\n";
+			// Intoarcem token-ul nesemnat deoarece nu am gasit un id 
+			//care sa aiba ca referinta acest token.
+			return return_token;
 		}
 		else{
 			// Ataseaza acelui ID, setul de permisiuni extras si marcheaza
@@ -208,7 +228,7 @@ char** approve_request_token_1_svc(char** pck, struct svc_req *cl){
 			std::map<std::string, User_data_srv*>::iterator user_info = ID_REQ_TOKEN.find(getname);
 			if (user_info != ID_REQ_TOKEN.end()){
 				user_info->second->perms = strdup(top_perm.c_str());
-				return_token[0][0] = (return_token[0][0] - 'A' + 5) % 58 + 'A';
+				return_token[0][0] = ~(return_token[0][0]);
 			}
 			// Sterge intrarea din map deoarece nu mai este de ajutor.
 			auth_token_id_map.erase(it);
