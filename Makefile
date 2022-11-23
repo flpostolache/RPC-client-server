@@ -16,7 +16,6 @@
 # */
 
 build:
-	rpcgen -C schema.x
 	rpcgen -C -c schema.x > schema_xdr.c
 	rpcgen -C -m schema.x > schema_svc.c
 	rpcgen -C -l schema.x > schema_clnt.c
